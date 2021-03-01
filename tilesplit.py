@@ -168,6 +168,8 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 		for ix in range(0, dimensions_in_tiles[1] // scale):
 			out_array[iy][ix] = "_blank_"
 	for i, line in enumerate(names.split("\n")):
+		if (len(line) <= 1):
+			continue
 		if (line.startswith("default")) or (line.startswith("def")):
 			for iy in range(0, dimensions_in_tiles[0] // scale):
 				for ix in range(0, dimensions_in_tiles[1] // scale):
