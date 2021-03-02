@@ -170,6 +170,8 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 	for i, line in enumerate(names.split("\n")):
 		if (len(line) <= 1):
 			continue
+		if (line[0] in "!#/%-;\" "):
+			continue
 		if (line.startswith("default")) or (line.startswith("def")):
 			for iy in range(0, dimensions_in_tiles[0] // scale):
 				for ix in range(0, dimensions_in_tiles[1] // scale):
