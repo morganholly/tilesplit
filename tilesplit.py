@@ -59,6 +59,14 @@ def crop_with_names(image_src: str, scale: int, names: tuple, empty: typing.Opti
 		for x in range(0, input_image.image.shape[1] // scale):
 			# print(x, y, path_prepend + "tile_" + str(x) + "_" + str(y) + ".png")
 			tempname = names[y][x]
+			split_path = pathlib.Path(tempname).parts
+			# tempname = splitpath[-1]
+			temp_path = str(pathlib.Path(path_prepend).resolve())
+			subfolder = split_path[0:-1]
+			for folder in subfolder:
+				temp_path = pathlib.Path(temp_path).resolve() / folder
+				if not temp_path.exists():
+					temp_path.mkdir()
 			# print("tempname", tempname)
 			if empty is not None and input_image.crop_tile(x, y).max() == 0 :
 				if empty == "_blank_":
