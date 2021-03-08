@@ -217,7 +217,9 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 			template = True
 			template_name = line.split(" ")[2]
 		elif line.startswith("end"):
-			templates[template_name] = process_template("\n".join(buffer))
+			# print(buffer)
+			templates[template_name] = tuple(process_template("\n".join(buffer)))
+			buffer = []
 			# print(templates)
 			template = False
 		elif template:
