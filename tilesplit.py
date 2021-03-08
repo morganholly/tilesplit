@@ -180,9 +180,20 @@ def process_template(names) -> typing.Tuple[typing.Tuple[int, int, str]]:
 	return tuple(out_list)
 
 
-def expand_template(name_array, template, offset, prepend):
+def template_to_string(template):
+	# for pretty-printing
+	sb = []
 	for item in template:
-		name_array[(item[1] + offset[1]) % len(name_array)][(item[0] + offset[0]) % len(name_array[0])] = prepend + item[2]
+		for i in item:
+			sb.append(str(i))
+	return " ".join(sb)
+
+
+def expand_template(name_array, template, offset, prepend, append):
+	# print(f"expanding template\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}")
+	for item in template:
+		name_array[(item[1] + offset[1]) % len(name_array)][(item[0] + offset[0]) % len(name_array[0])] = prepend + item[2] + append
+	return name_array
 
 
 def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing.Tuple[np.ndarray, typing.Optional[str]]:
@@ -227,9 +238,23 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 		elif line.startswith("template"):
 			line_split = line.split(" ")
 			try:
-				template_calls.append((templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4]))
+				if len(line_split) > 5:
+					append = line_split[5]
+				else:
+					append = ""
+				expand_template(out_array, templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append)
 			except KeyError:
 				print(f"ERROR: template {line_split[1]} is undefined")
+		elif line.startswith("final template"):
+			line_split = line.split(" ")
+			try:
+				if len(line_split) > 6:
+					append = line_split[6]
+				else:
+					append = ""
+				template_calls.append((templates[line_split[2]], (int(line_split[3]), int(line_split[4])), line_split[5], append))
+			except KeyError:
+				print(f"ERROR: template {line_split[2]} is undefined")
 		else:
 			# print("<3>", line)
 			# print("<xy>", x, y)
@@ -244,7 +269,7 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 			# 	x = 0
 			# 	y += 1
 	for call in template_calls:
-		expand_template(out_array, call[0], call[1], call[2])
+		expand_template(out_array, call[0], call[1], call[2], call[3])
 	return out_array, empty
 
 
