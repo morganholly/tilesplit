@@ -262,4 +262,15 @@ elif len(sys.argv) == 4:
 		# print("---")
 		# namelist.seek(0, 0)
 		# print(expand_names(namelist.read(), imageio.imread(sys.argv[1], "png").shape, int(sys.argv[2])))
-		crop_with_names(sys.argv[1], int(sys.argv[2]), *expand_names(namelist.read(), imageio.imread(sys.argv[1], "png").shape, int(sys.argv[2])))
+		tile_size = int(sys.argv[2])
+		image = imageio.imread(sys.argv[1], "png")
+		if (image.shape[0] % tile_size != 0) or (image.shape[1] % tile_size != 0):
+			print(f"ERROR: image dimensions are not an integer multiple of the tile size {tile_size}, \
+			tile coordinates may not work as intended")
+			ask = input("Continue? [y/N]: ").lower() + " "
+			if ask.startswith("y"):
+				crop_with_names(sys.argv[1], tile_size, *expand_names(namelist.read(), image.shape, tile_size))
+			else:
+				pass
+		else:
+			crop_with_names(sys.argv[1], tile_size, *expand_names(namelist.read(), image.shape, tile_size))
