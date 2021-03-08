@@ -171,27 +171,33 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 	out_array = np.ndarray((dimensions_in_tiles[0] // scale, dimensions_in_tiles[1] // scale), object)
 	x = 0
 	y = 0
+	swap = False
 	empty = None
 	for iy in range(0, dimensions_in_tiles[0] // scale):
 		for ix in range(0, dimensions_in_tiles[1] // scale):
 			out_array[iy][ix] = "_blank_"
 	for i, line in enumerate(names.split("\n")):
-		if (len(line) <= 1):
+		if len(line) <= 1:
 			continue
-		if (line[0] in "!#/%-;\" "):
+		if line[0] in "!#/%-;\" ":
 			continue
-		if (line.startswith("default")) or (line.startswith("def")):
+		if line.startswith("default") or line.startswith("def"):
 			for iy in range(0, dimensions_in_tiles[0] // scale):
 				for ix in range(0, dimensions_in_tiles[1] // scale):
 					out_array[iy][ix] = line.split(" ")[1]
 		elif line.startswith("empty"):
 			empty = line.split(" ")[1]
+		elif line.startswith("swapxy"):
+			swap ^= True
 		else:
 			# print("<3>", line)
 			# print("<xy>", x, y)
 			# print(line.split(" "))
 			# print(line.split(" ")[2])
-			out_array[int(line.split(" ")[1])][int(line.split(" ")[0])] = line.split(" ")[2]
+			if swap:
+				out_array[int(line.split(" ")[0])][int(line.split(" ")[1])] = line.split(" ")[2]
+			else:
+				out_array[int(line.split(" ")[1])][int(line.split(" ")[0])] = line.split(" ")[2]
 			if x > dimensions_in_tiles[1]:
 				x = 0
 				y += 1
