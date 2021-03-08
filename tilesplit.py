@@ -167,35 +167,75 @@ def expand_names_old(names, dimensions_in_tiles: typing.Tuple[int], scale) -> np
 	return out_array
 
 
+def process_template(names) -> typing.Tuple[typing.Tuple[int, int, str]]:
+	out_list = []
+	for i, line in enumerate(names.split("\n")):
+		if len(line) <= 1:
+			continue
+		elif line[0] in "!#/%-;\" ":
+			continue
+		else:
+			line_split = line.split(" ")
+			out_list.append((int(line_split[0]), int(line_split[1]), str(line_split[2])))
+	return tuple(out_list)
+
+
+def expand_template(name_array, template, offset, prepend):
+	for item in template:
+		name_array[(item[1] + offset[1]) % len(name_array)][(item[0] + offset[0]) % len(name_array[0])] = prepend + item[2]
+
+
 def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing.Tuple[np.ndarray, typing.Optional[str]]:
 	out_array = np.ndarray((dimensions_in_tiles[0] // scale, dimensions_in_tiles[1] // scale), object)
 	# x = 0
 	# y = 0
 	swap = False
 	empty = None
+	template = False
+	buffer = []
+	templates = {}
+	template_calls = []
+	template_name = ""
 	for iy in range(0, dimensions_in_tiles[0] // scale):
 		for ix in range(0, dimensions_in_tiles[1] // scale):
 			out_array[iy][ix] = "_blank_"
 	for i, line in enumerate(names.split("\n")):
 		if len(line) <= 1:
 			continue
-		if line[0] in "!#/%-;\" ":
+		elif not template and (line[0] in "!#/%-;\" "):
 			continue
-		if line.startswith("default") or line.startswith("def"):
+		elif not template and (line.startswith("default") or line.startswith("def")):
+			line_split = line.split(" ")
 			for iy in range(0, dimensions_in_tiles[0] // scale):
 				for ix in range(0, dimensions_in_tiles[1] // scale):
-					out_array[iy][ix] = line.split(" ")[1]
-		elif line.startswith("empty"):
+					out_array[iy][ix] = line_split[1]
+		elif not template and (line.startswith("empty")):
 			empty = line.split(" ")[1]
-		elif line.startswith("swapxy"):
+		elif not template and (line.startswith("swapxy")):
 			swap ^= True
+		elif line.startswith("new template"):
+			template = True
+			template_name = line.split(" ")[2]
+		elif line.startswith("end"):
+			templates[template_name] = process_template("\n".join(buffer))
+			# print(templates)
+			template = False
+		elif template:
+			buffer.append(line)
+		elif line.startswith("template"):
+			line_split = line.split(" ")
+			try:
+				template_calls.append((templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4]))
+			except KeyError:
+				print(f"ERROR: template {line_split[1]} is undefined")
 		else:
 			# print("<3>", line)
 			# print("<xy>", x, y)
 			# print(line.split(" "))
 			# print(line.split(" ")[2])
+			line_split = line.split(" ")
 			if swap:
-				out_array[int(line.split(" ")[0])][int(line.split(" ")[1])] = line.split(" ")[2]
+				out_array[int(line_split[0])][int(line_split[1])] = line_split[2]
 			else:
 				out_array[int(line_split[1])][int(line_split[0])] = line_split[2]
 			# if x > dimensions_in_tiles[1]:
