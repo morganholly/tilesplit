@@ -169,8 +169,8 @@ def expand_names_old(names, dimensions_in_tiles: typing.Tuple[int], scale) -> np
 
 def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing.Tuple[np.ndarray, typing.Optional[str]]:
 	out_array = np.ndarray((dimensions_in_tiles[0] // scale, dimensions_in_tiles[1] // scale), object)
-	x = 0
-	y = 0
+	# x = 0
+	# y = 0
 	swap = False
 	empty = None
 	for iy in range(0, dimensions_in_tiles[0] // scale):
@@ -197,10 +197,12 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 			if swap:
 				out_array[int(line.split(" ")[0])][int(line.split(" ")[1])] = line.split(" ")[2]
 			else:
-				out_array[int(line.split(" ")[1])][int(line.split(" ")[0])] = line.split(" ")[2]
-			if x > dimensions_in_tiles[1]:
-				x = 0
-				y += 1
+				out_array[int(line_split[1])][int(line_split[0])] = line_split[2]
+			# if x > dimensions_in_tiles[1]:
+			# 	x = 0
+			# 	y += 1
+	for call in template_calls:
+		expand_template(out_array, call[0], call[1], call[2])
 	return out_array, empty
 
 
