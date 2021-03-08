@@ -45,7 +45,7 @@ def crop_all(image_src: str, scale: int):
 			counter += 1
 
 
-def crop_with_names(image_src: str, scale: int, names: tuple, empty: typing.Optional[str] = None):
+def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: typing.Optional[str] = None):
 	input_image = TileSheet(imageio.imread(image_src, "png"), scale)
 	counter = 0
 	path_prepend = str(pathlib.Path(image_src).resolve().parent) + "/" + str(pathlib.Path(image_src).name).split(".")[0] + "/"
@@ -57,38 +57,43 @@ def crop_with_names(image_src: str, scale: int, names: tuple, empty: typing.Opti
 	# print(names)
 	for y in range(0, input_image.image.shape[0] // scale):
 		for x in range(0, input_image.image.shape[1] // scale):
-			# print(x, y, path_prepend + "tile_" + str(x) + "_" + str(y) + ".png")
+			if verbose:
+				print(x, y, path_prepend + "tile_" + str(x) + "_" + str(y) + ".png")
 			tempname = names[y][x]
 			split_path = pathlib.Path(tempname).parts
-			# tempname = splitpath[-1]
 			temp_path = str(pathlib.Path(path_prepend).resolve())
 			subfolder = split_path[0:-1]
 			for folder in subfolder:
 				temp_path = pathlib.Path(temp_path).resolve() / folder
 				if not temp_path.exists():
 					temp_path.mkdir()
-			# print("tempname", tempname)
+			if verbose:
+				print("tempname", tempname)
 			if empty is not None and input_image.crop_tile(x, y).max() == 0 :
 				if empty == "_blank_":
 					filename = path_prepend + "tile_" + str(x) + "_" + str(y) + ".png"
-					# print(filename)
+					if verbose:
+						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
 				elif empty == "_noexport_":
 					pass
 				else:
 					filename = path_prepend + empty + ".png"
-					# print(filename)
+					if verbose:
+						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
 			else:
 				if tempname == "_blank_":
 					filename = path_prepend + "tile_" + str(x) + "_" + str(y) + ".png"
-					# print(filename)
+					if verbose:
+						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
 				elif tempname == "_noexport_":
 					pass
 				else:
 					filename = path_prepend + tempname + ".png"
-					# print(filename)
+					if verbose:
+						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
 			counter += 1
 
@@ -189,14 +194,15 @@ def template_to_string(template):
 	return " ".join(sb)
 
 
-def expand_template(name_array, template, offset, prepend, append):
-	# print(f"expanding template\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}")
+def expand_template(name_array, template, offset, prepend, append, verbose):
+	if verbose:
+		print(f"expanding template\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}")
 	for item in template:
 		name_array[(item[1] + offset[1]) % len(name_array)][(item[0] + offset[0]) % len(name_array[0])] = prepend + item[2] + append
 	return name_array
 
 
-def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing.Tuple[np.ndarray, typing.Optional[str]]:
+def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose) -> typing.Tuple[np.ndarray, typing.Optional[str]]:
 	out_array = np.ndarray((dimensions_in_tiles[0] // scale, dimensions_in_tiles[1] // scale), object)
 	# x = 0
 	# y = 0
@@ -228,7 +234,8 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 			template = True
 			template_name = line.split(" ")[2]
 		elif line.startswith("end"):
-			# print(buffer)
+			if verbose:
+				print(buffer)
 			templates[template_name] = tuple(process_template("\n".join(buffer)))
 			buffer = []
 			# print(templates)
@@ -242,7 +249,7 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 					append = line_split[5]
 				else:
 					append = ""
-				expand_template(out_array, templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append)
+				expand_template(out_array, templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append, verbose)
 			except KeyError:
 				print(f"ERROR: template {line_split[1]} is undefined")
 		elif line.startswith("final template"):
@@ -269,7 +276,7 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale) -> typing
 			# 	x = 0
 			# 	y += 1
 	for call in template_calls:
-		expand_template(out_array, call[0], call[1], call[2], call[3])
+		expand_template(out_array, call[0], call[1], call[2], call[3], verbose)
 	return out_array, empty
 
 
@@ -283,12 +290,15 @@ def delist(x):
 # print(sys.argv)
 if len(sys.argv) == 3:
 	crop_all(sys.argv[1], int(sys.argv[2]))
-elif len(sys.argv) == 4:
+elif len(sys.argv) >= 4:
 	with open(sys.argv[3], "r") as namelist:
 		# print(namelist.read())
 		# print("---")
 		# namelist.seek(0, 0)
 		# print(expand_names(namelist.read(), imageio.imread(sys.argv[1], "png").shape, int(sys.argv[2])))
+		verbose = False
+		if (len(sys.argv) >= 5) and sys.argv[4] in ["verbose", "-v", "--verbose", "-verbose", "--v", "true", "yes", "logging", "log", "y"]:
+			verbose = True
 		tile_size = int(sys.argv[2])
 		image = imageio.imread(sys.argv[1], "png")
 		if (image.shape[0] % tile_size != 0) or (image.shape[1] % tile_size != 0):
@@ -296,8 +306,8 @@ elif len(sys.argv) == 4:
 			tile coordinates may not work as intended")
 			ask = input("Continue? [y/N]: ").lower() + " "
 			if ask.startswith("y"):
-				crop_with_names(sys.argv[1], tile_size, *expand_names(namelist.read(), image.shape, tile_size))
+				crop_with_names(sys.argv[1], tile_size, verbose, *expand_names(namelist.read(), image.shape, tile_size, verbose))
 			else:
 				pass
 		else:
-			crop_with_names(sys.argv[1], tile_size, *expand_names(namelist.read(), image.shape, tile_size))
+			crop_with_names(sys.argv[1], tile_size, verbose, *expand_names(namelist.read(), image.shape, tile_size, verbose))
