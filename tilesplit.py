@@ -28,6 +28,10 @@ class TileSheet:
 		xp, yp = self.tile_coord_to_pixel_coord(xt, yt)
 		return self.image[yp:yp+self.scale, xp:xp + self.scale]
 
+	def crop_region(self, xp1, yp1, xp2, yp2):
+		# xp, yp = self.tile_coord_to_pixel_coord(xt, yt)
+		return self.image[yp1:yp2+1, xp1:xp2+1]
+
 
 def crop_all(image_src: str, scale: int):
 	input_image = TileSheet(imageio.imread(image_src, "png"), scale)
@@ -40,17 +44,43 @@ def crop_all(image_src: str, scale: int):
 			raise
 	for y in range(0, input_image.image.shape[0] // scale):
 		for x in range(0, input_image.image.shape[1] // scale):
-			print(x, y, path_prepend + "tile_" + str(counter) + ".png")
+			# print(x, y, path_prepend + "tile_" + str(counter) + ".png")
 			imageio.imsave(path_prepend + "tile_" + str(counter) + ".png", input_image.crop_tile(x, y), "png")
 			counter += 1
 
 
-def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: typing.Optional[str] = None):
+def crop_regions(tilesheet: TileSheet, path_prepend: pathlib.Path, regions: typing.Tuple[typing.Tuple[typing.Tuple[int, int, int, int], str]]):
+	for region in regions:
+		coords = region[0]
+		tempname = region[1]
+		split_path = pathlib.Path(tempname).parts
+		temp_path = str(pathlib.Path(path_prepend).resolve())
+		subfolder = split_path[0:-1]
+		for folder in subfolder:
+			temp_path = pathlib.Path(temp_path).resolve() / folder
+			if not temp_path.exists():
+				temp_path.mkdir()
+		if tempname == "_blank_":
+			filename = str(path_prepend / "region_" / str(coords[0]) / "_" / str(coords[1]) / "__" / str(coords[2]) / "_" / str(coords[3])).with_suffix(".png")
+			if verbose:
+				print("filename", filename)
+			imageio.imsave(filename, tilesheet.crop_region(*coords), "png")
+		elif tempname == "_noexport_":
+			pass
+		else:
+			filename = str((path_prepend / tempname).with_suffix(".png"))
+			if verbose:
+				print("filename", filename)
+			# print(filename, coords)
+			imageio.imsave(filename, tilesheet.crop_region(*coords), "png")
+
+
+def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: typing.Optional[str] = None, regions: typing.Optional[typing.Tuple[typing.Tuple[typing.Tuple[int, int, int, int], str]]] = None):
 	input_image = TileSheet(imageio.imread(image_src, "png"), scale)
-	counter = 0
-	path_prepend = str(pathlib.Path(image_src).resolve().parent) + "/" + str(pathlib.Path(image_src).name).split(".")[0] + "/"
+	# counter = 0
+	path_prepend = pathlib.Path(image_src).resolve().parent / pathlib.Path(str(pathlib.Path(image_src).name).split(".")[0])
 	try:
-		os.makedirs(path_prepend)
+		os.makedirs(str(path_prepend))
 	except OSError as e:
 		if e.errno != errno.EEXIST:
 			raise
@@ -58,7 +88,7 @@ def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: ty
 	for y in range(0, input_image.image.shape[0] // scale):
 		for x in range(0, input_image.image.shape[1] // scale):
 			if verbose:
-				print(x, y, path_prepend + "tile_" + str(x) + "_" + str(y) + ".png")
+				print(x, y, str(path_prepend / "tile_" / str(x) / "_" / str(y)).with_suffix(".png"))
 			tempname = names[y][x]
 			split_path = pathlib.Path(tempname).parts
 			temp_path = str(pathlib.Path(path_prepend).resolve())
@@ -69,33 +99,33 @@ def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: ty
 					temp_path.mkdir()
 			if verbose:
 				print("tempname", tempname)
-			if empty is not None and input_image.crop_tile(x, y).max() == 0 :
+			if empty is not None and input_image.crop_tile(x, y).max() == 0:
 				if empty == "_blank_":
-					filename = path_prepend + "tile_" + str(x) + "_" + str(y) + ".png"
+					filename = str(path_prepend / "tile_" / str(x) / "_" / str(y)).with_suffix(".png")
 					if verbose:
 						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
 				elif empty == "_noexport_":
 					pass
 				else:
-					filename = path_prepend + empty + ".png"
+					filename = str((path_prepend / empty).with_suffix(".png"))
 					if verbose:
 						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
 			else:
 				if tempname == "_blank_":
-					filename = path_prepend + "tile_" + str(x) + "_" + str(y) + ".png"
+					filename = str(path_prepend / "tile_" / str(x) / "_" / str(y)).with_suffix(".png")
 					if verbose:
 						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
 				elif tempname == "_noexport_":
 					pass
 				else:
-					filename = path_prepend + tempname + ".png"
+					filename = str((path_prepend / tempname).with_suffix(".png"))
 					if verbose:
 						print("filename", filename)
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
-			counter += 1
+	crop_regions(input_image, path_prepend, regions)
 
 
 def wrap_incr(x, y, length):
@@ -179,9 +209,42 @@ def process_template(names) -> typing.Tuple[typing.Tuple[int, int, str]]:
 			continue
 		elif line[0] in "!#/%-;\" ":
 			continue
+		elif line.startswith("end"):
+			print(f"line {i+1} starting with end must be `end template`, not {line}. ending template block.")
+			break
 		else:
 			line_split = line.split(" ")
 			out_list.append((int(line_split[0]), int(line_split[1]), str(line_split[2])))
+	return tuple(out_list)
+
+
+def clip(i: int, l: int, u: int) -> int:
+	if i < l:
+		i = l
+	elif i > u:
+		i = u
+	return i
+
+
+def process_region(names, x, y) -> typing.Tuple[typing.Tuple[int, int, int, int, str]]:
+	out_list = []
+	# print(x, y)
+	for i, line in enumerate(names.split("\n")):
+		# print(line)
+		if len(line) <= 1:
+			continue
+		elif line[0] in "!#/%-;\" ":
+			continue
+		elif line.startswith("end"):
+			print(f"line {i+1} starting with end must be `end region`, not {line}. ending region block.")
+			break
+		else:
+			line_split = line.split(" ")
+			# print(line_split)
+			# value = (clip(int(line_split[0]), 0, x), clip(int(line_split[1]), 0, y), clip(int(line_split[2]), 0, x), clip(int(line_split[3]), 0, y))
+			# print(value)
+			out_list.append((clip(int(line_split[0]), 0, x), clip(int(line_split[1]), 0, y), clip(int(line_split[2]), 0, x), clip(int(line_split[3]), 0, y), str(line_split[4])))
+	# print(out_list)
 	return tuple(out_list)
 
 
@@ -202,17 +265,42 @@ def expand_template(name_array, template, offset, prepend, append, verbose):
 	return name_array
 
 
-def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose) -> typing.Tuple[np.ndarray, typing.Optional[str]]:
+def expand_region(region, offset, prepend, append, scale, verbose) -> typing.Tuple[typing.Tuple[typing.Tuple[int, int, int, int], str]]:
+	regions = []
+	if verbose:
+		print(f"expanding region\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}")
+	for item in region:
+		# print(item)
+		# print(offset)
+		coords = (int(item[0] + offset[0]), int(item[1] + offset[1]), int(item[2] + offset[0]), int(item[3] + offset[1]))
+		# print(coords)
+		# print()
+		regions.append((coords, str(prepend + item[4] + append)))
+		# region_list[(item[1] + offset[1]) % len(region_list)][(item[0] + offset[0]) % len(region_list[0])] = prepend + item[2] + append
+	# print(region_list)
+	return tuple(regions)
+
+
+def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose)\
+		-> typing.Tuple[np.ndarray, typing.Optional[str], typing.Tuple[typing.Tuple[typing.Tuple[int, int, int, int], str]]]:
 	out_array = np.ndarray((dimensions_in_tiles[0] // scale, dimensions_in_tiles[1] // scale), object)
 	# x = 0
 	# y = 0
 	swap = False
 	empty = None
 	template = False
-	buffer = []
+	template_buffer = []
 	templates = {}
 	template_calls = []
 	template_name = ""
+	region = False
+	region_x = 0
+	region_y = 0
+	region_buffer = []
+	regions = {}
+	region_calls = []
+	region_name = ""
+	region_list: typing.List[typing.Tuple[typing.Tuple[int, int, int, int], str]] = []
 	for iy in range(0, dimensions_in_tiles[0] // scale):
 		for ix in range(0, dimensions_in_tiles[1] // scale):
 			out_array[iy][ix] = "_blank_"
@@ -233,15 +321,13 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose) 
 		elif line.startswith("new template"):
 			template = True
 			template_name = line.split(" ")[2]
-		elif line.startswith("end"):
+		elif line.startswith("end template"):
 			if verbose:
-				print(buffer)
-			templates[template_name] = tuple(process_template("\n".join(buffer)))
-			buffer = []
+				print(template_buffer)
+			templates[template_name] = tuple(process_template("\n".join(template_buffer)))
+			template_buffer = []
 			# print(templates)
 			template = False
-		elif template:
-			buffer.append(line)
 		elif line.startswith("template"):
 			line_split = line.split(" ")
 			try:
@@ -262,7 +348,59 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose) 
 				template_calls.append((templates[line_split[2]], (int(line_split[3]), int(line_split[4])), line_split[5], append))
 			except KeyError:
 				print(f"ERROR: template {line_split[2]} is undefined")
+		elif line.startswith("new region"):
+			region = True
+			line_split = line.split(" ")
+			region_name = line_split[4]
+			region_x = int(line_split[2])
+			region_y = int(line_split[3])
+		elif line.startswith("end region"):
+			if verbose:
+				print(region_buffer)
+			# print(region_buffer)
+			regions[region_name] = tuple(process_region("\n".join(region_buffer), (region_x + 1) * scale, (region_y + 1) * scale))
+			region_buffer = []
+			# print(regions)
+			region = False
+		elif line.startswith("region"):
+			line_split = line.split(" ")
+			try:
+				if len(line_split) > 5:
+					append = line_split[5]
+				else:
+					append = ""
+				# region_calls.append((regions[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append))
+				region_list.extend(expand_region(regions[line_split[1]], (int(line_split[2]) * scale, int(line_split[3]) * scale), line_split[4], append, scale, verbose))
+			except KeyError:
+				print(f"ERROR: region {line_split[1]} is undefined")
+		elif line.startswith("final region"):
+			line_split = line.split(" ")
+			try:
+				if len(line_split) > 6:
+					append = line_split[6]
+				else:
+					append = ""
+				region_calls.append((regions[line_split[2]], (int(line_split[3]) * scale, int(line_split[4]) * scale), line_split[5], append))
+			except KeyError:
+				print(f"ERROR: region {line_split[2]} is undefined")
+		elif line.startswith("end"):
+			if region or template:
+				print(f"ERROR: line {i+1} starting with end must be either `end template` or `end region`, not {line}.\nclosing block")
+				region_buffer = []
+				template_buffer = []
+				region = False
+				template = False
+			else:
+				print(f"ERROR: line {i+1} starting with end must be either `end template` or `end region`, not {line}.\nno open block to close")
+		elif region:
+			region_buffer.append(line)
+		elif template:
+			template_buffer.append(line)
+		# elif line.startswith("end"):
+		# 	print(f"line starting with end must be either `end template` or `end region`, not {line}. exiting")
+		# 	sys.exit()
 		else:
+			# print(line)
 			# print("<3>", line)
 			# print("<xy>", x, y)
 			# print(line.split(" "))
@@ -277,7 +415,9 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose) 
 			# 	y += 1
 	for call in template_calls:
 		expand_template(out_array, call[0], call[1], call[2], call[3], verbose)
-	return out_array, empty
+	for call in region_calls:
+		region_list.extend(expand_region(region_list, call[0], call[1], call[2], call[3], scale, verbose))
+	return out_array, empty, tuple(region_list)
 
 
 def delist(x):
