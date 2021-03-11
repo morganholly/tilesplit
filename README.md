@@ -1,9 +1,23 @@
 # tilesplit
 CLI tilesheet splitter in Py3
 
-usage: `python3 tilesplit.py tilesheet.png 16 tilesheet.txt`
+#### usage: `python3 tilesplit.py tilesheet.png 16 tilesheet.txt`
+ * takes in a tilesheet, the tile size, and the naming file
+ * exports named tiles in a dir with the name of the tilesheet, in the same dir as the tilesheet
 
-Exported tiles are placed in a folder with the same name as the original directory. It uses `pathlib` and should work on Windows. Tested on Mac. Having someone test it on Windows would be greatly appreciated.
+#### usage: `python3 tilesplit.py tilesheet.png 16`
+ * takes in a tilesheet and the tile size
+ * exports ***un***named tiles in the same location the above command would
+ * exported files are named tile_x_y.png where x and y are the tile coordinate
+
+#### usage `python3 tilesplit.py tilesheet.tsn`
+ * takes in a tsn file
+ * the tsn file must declare the image path (relative or absolute) and the tile size
+ * exports files the same way the first option does
+
+Files exported using the first or third way that were not given a name get a default name in the same format as files exported with the second way.
+
+*tilesplit* uses Pathlib and has been used on Windows, but all testing is done on macOS. Additional testing on Windows as well as initial testing on Linuxes and even just on more devices would be appreciated. Please make an issue if you run into any problems running or otherwise using *tilesplit*
 
 ![](image.png)
 
