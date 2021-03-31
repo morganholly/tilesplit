@@ -213,7 +213,7 @@ def expand_names_old(names, dimensions_in_tiles: typing.Tuple[int], scale) -> np
 def process_template(names, templates) -> typing.Tuple[typing.Tuple[int, int, str]]:
 	out_list = []
 	for i, line in enumerate(names.split("\n")):
-		print(line)
+		# print(line)
 		if len(line) <= 1:
 			continue
 		elif line[0] in "!#/%-;\" ":
@@ -223,9 +223,9 @@ def process_template(names, templates) -> typing.Tuple[typing.Tuple[int, int, st
 			log.write(f"line {i+1} starting with end must be `end template`, not {line}. ending template block.\n")
 			break
 		elif line.startswith("template"):
-			print(f"meta template call {line}")
+			# print(f"meta template call {line}")
 			line_split = line.split(" ")
-			print(line_split)
+			# print(line_split)
 			try:
 				if len(line_split) > 5:
 					append = line_split[5]
@@ -237,22 +237,24 @@ def process_template(names, templates) -> typing.Tuple[typing.Tuple[int, int, st
 			except KeyError:
 				print(f"ERROR: template {line_split[1]} is undefined")
 				log.write(f"ERROR: template {line_split[1]} is undefined\n")
-		# elif line.startswith("region"):
-		# 	line_split = line.split(" ")
-		# 	try:
-		# 		if len(line_split) > 5:
-		# 			append = line_split[5]
-		# 		else:
-		# 			append = ""
-		# 		# region_calls.append((regions[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append))
-		# 		region_list.extend(expand_region(regions[line_split[1]], (int(line_split[2]) * scale, int(line_split[3]) * scale), line_split[4], append, verbose))
-		# 	except KeyError:
-		# 		print(f"ERROR: region {line_split[1]} is undefined")
-		# 		log.write(f"ERROR: region {line_split[1]} is undefined\n")
+		elif line.startswith("region"):
+			out_list.append(line)
+			# print("appending region: ", line)
+			# line_split = line.split(" ")
+			# try:
+			# 	if len(line_split) > 5:
+			# 		append = line_split[5]
+			# 	else:
+			# 		append = ""
+			# 	# region_calls.append((regions[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append))
+			# 	region_list.extend(expand_region(regions[line_split[1]], (int(line_split[2]) * scale, int(line_split[3]) * scale), line_split[4], append, verbose))
+			# except KeyError:
+			# 	print(f"ERROR: region {line_split[1]} is undefined")
+			# 	log.write(f"ERROR: region {line_split[1]} is undefined\n")
 		else:
 			line_split = line.split(" ")
 			out_list.append((int(line_split[0]), int(line_split[1]), str(line_split[2])))
-	print(out_list)
+	# print(out_list)
 	return tuple(out_list)
 
 
@@ -296,15 +298,32 @@ def template_to_string(template):
 	return " ".join(sb)
 
 
-def expand_template(name_array, template, offset, prepend, append, verbose):
+def expand_template(name_array, template, offset, prepend, append, verbose, regions, region_list, scale):
 	if verbose:
 		print(f"expanding template\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}")
 		log.write(f"expanding template\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}\n")
 	for item in template:
 		try:
-			name_array[(item[1] + offset[1]) % len(name_array)][(item[0] + offset[0]) % len(name_array[0])] = prepend + item[2] + append
-		except TypeError:
-			print("!!! TypeError:", item)
+			if item.startswith("region"):
+				line_split = item.split(" ")
+				try:
+					if len(line_split) > 5:
+						region_append = line_split[5]
+					else:
+						region_append = ""
+					# region_calls.append((regions[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append))
+					# print(prepend, line_split[4], region_append, append)
+					region_list.extend(expand_region(regions[line_split[1]], ((int(line_split[2]) + offset[0]) * scale, (int(line_split[3]) + offset[1]) * scale), prepend + line_split[4], region_append + append, verbose))
+				except KeyError:
+					print(f"ERROR: region {line_split[1]} is undefined")
+					log.write(f"ERROR: region {line_split[1]} is undefined\n")
+			# else:
+			# 	print(item)
+		except AttributeError:
+			try:
+				name_array[(item[1] + offset[1]) % len(name_array)][(item[0] + offset[0]) % len(name_array[0])] = prepend + item[2] + append
+			except TypeError:
+				print("!!! TypeError:", item)
 	return name_array
 
 
@@ -385,11 +404,14 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose)\
 					append = line_split[5]
 				else:
 					append = ""
-				expand_template(out_array, templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append, verbose)
+				expand_template(out_array, templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append, verbose, regions, region_list, scale)
 			except KeyError:
 				print(f"ERROR: template {line_split[1]} is undefined")
 				log.write(f"ERROR: template {line_split[1]} is undefined\n")
 		elif line.startswith("final template"):
+			if template:
+				template_buffer.append(line)
+				continue
 			line_split = line.split(" ")
 			try:
 				if len(line_split) > 6:
@@ -416,6 +438,9 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose)\
 			# print(regions)
 			region = False
 		elif line.startswith("region"):
+			if template:
+				template_buffer.append(line)
+				continue
 			line_split = line.split(" ")
 			try:
 				if len(line_split) > 5:
@@ -428,6 +453,9 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose)\
 				print(f"ERROR: region {line_split[1]} is undefined")
 				log.write(f"ERROR: region {line_split[1]} is undefined\n")
 		elif line.startswith("final region"):
+			if template:
+				template_buffer.append(line)
+				continue
 			line_split = line.split(" ")
 			try:
 				if len(line_split) > 6:
@@ -471,7 +499,7 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose)\
 			# 	x = 0
 			# 	y += 1
 	for call in template_calls:
-		expand_template(out_array, call[0], call[1], call[2], call[3], verbose)
+		expand_template(out_array, call[0], call[1], call[2], call[3], verbose, regions, region_list, scale)
 	for call in region_calls:
 		region_list.extend(expand_region(call[0], call[1], call[2], call[3], verbose))
 	return out_array, empty, tuple(region_list)
