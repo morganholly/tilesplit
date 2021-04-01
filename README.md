@@ -19,6 +19,8 @@ Files exported using the first or third way that were not given a name get a def
 
 *tilesplit* uses Pathlib and has been used on Windows, but all testing is done on macOS. Additional testing on Windows as well as initial testing on Linuxes and even just on more devices would be appreciated. Please make an issue if you run into any problems running or otherwise using *tilesplit*
 
+---
+
 ## Basic naming file usage
 
 The first two lines should start with `default` and `empty` these define the default name applied to everything and what is done with tiles that do not contain any image data. For each you have two main options `_blank_`, which will be replaced with `tile_x_y` using the tile coordinates, and `_noexport_` which will not export that tile. You can set these to any text, however currently *tilesplit* does not check for existing files before exporting, so you will only end up with one file with that name. This may be changed in the future.
@@ -39,6 +41,26 @@ empty _noexport_
 ```
 
 <img src="image.png" alt="unsplit tilesheet" height="250"/><img src="finder.png" alt="results" height="250"/>
+
+---
+
+## Comments
+
+Comments are handy to tell you what some naming lines are for or to separate sections of namings, with long lines across the file.
+
+Comments are any line that start with one of the following characters:
+* `!`
+* `#`
+* `/`
+* `%`
+* `-`
+* `;`
+* `"`
+* ` `&nbsp;(a space)
+
+and are checked in that order.
+
+---
 
 ## Templates
 
@@ -77,3 +99,55 @@ final template crystal 0 5 crystal/pink/ __variant3
 ```
 
 <img src="template use-case.png" alt="unsplit tilesheet" height="300"/><img src="template export.png" alt="results" height="300"/>
+
+---
+
+## Regions
+
+So tile grids are nice and all, but what if you had a 32x48 pixel texture for a more complex model, or a 12x12 pixel texture for something small, or you needed to have each part of a complex model exported to its own small image, well regions are *tilesplit*'s answer to those situations.
+
+Regions are defined with the tiles the cover, with 0 0 meaning one tile, 3 7 meaning 4 horizontally and 8 vertically. Within a region definition, you define export regions with 4 integers, the top left coordinates and the bottom right coordinates, both x y as with everything else.
+
+```
+default _blank_
+empty _noexport_
+
+new region 2 2 one
+! 48x48 pixel single export
+0 0 47 47 growth
+end region
+
+new region 0 0 two
+! four smaller areas
+0 0 7 7 8x8
+10 0 15 5 6x6
+12 8 15 11 4x4
+14 14 15 15 2x2
+end region
+```
+
+Regions can be used for a single large region or many smaller ones. But you should avoid exporting many tiny (a few pixels on each side) images, as this is not only time consuming and extends over many lines of your naming file, but will likely also be more annoying to use.
+
+---
+
+## Meta Templates
+
+Template definitions can also include template and region calls (but not definitions). This makes it significantly easier to make naming definitions for large tilesheets, without making the main template unwieldy and confusing. You can break it up into individual sections, using smaller templates.
+
+```
+new template column
+template 3x2y 0 0 tile/tile
+template 3x2y 0 2 flat/flat_old
+template 3x2y 0 4 flat/flat
+template 3x2y 0 6 layered/layered
+template 3x1y 0 8 sweetstone/sweetstone
+template 3x1y 0 9 sweetstone/cobbled_sweetstone
+template bricks 0 10 sweetstone/bricks__
+template 3x1y 0 12 sweetstone/tile
+template 3x1y 0 13 crushed/crushed
+template 3x2y 0 14 crystal/crystal
+template 3x2y 0 16 crystal/crystal__clear
+template normal_items 0 20 item/item
+region growth3d 0 22 growth/
+end template
+```
