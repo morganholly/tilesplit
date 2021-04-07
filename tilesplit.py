@@ -5,6 +5,7 @@ import sys
 import os
 import errno
 import typing
+import pprint
 
 
 class TileSheet:
@@ -156,7 +157,7 @@ def process_template(names, regions, scale, template_meta_var) -> typing.Tuple[t
 			print(f"line {i+1} starting with end must be `end template`, not {line}. ending template block.")
 			log.write(f"line {i+1} starting with end must be `end template`, not {line}. ending template block.\n")
 			break
-		elif line.startswith("template"):
+		elif line.startswith("template") or line.startswith("meta"):
 			# out_list.append(line)
 			# # print(f"meta template call {line}")
 			line_split = line.split(" ")
@@ -164,20 +165,6 @@ def process_template(names, regions, scale, template_meta_var) -> typing.Tuple[t
 				if item == template_meta_var:
 					line_split[j] = "_meta_"
 			out_list.append(line_split)
-			# # print(line_split)
-			# try:
-			# 	if len(line_split) > 5:
-			# 		append = line_split[5]
-			# 	else:
-			# 		append = ""
-			# 	# expand_template(out_array, templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append, verbose)
-			# 	# if line_split[1] == template_meta_var:
-			#
-			# 	for item in templates[line_split[1]]:
-			# 		out_list.append((item[0] + int(line_split[2]), item[1] + int(line_split[3]), str(line_split[4] + item[2] + append)))
-			# except KeyError:
-			# 	print(f"ERROR: template {line_split[1]} is undefined")
-			# 	log.write(f"ERROR: template {line_split[1]} is undefined\n")
 		elif line.startswith("region"):
 			# out_list.append(line)
 			line_split = line.split(" ")
@@ -241,32 +228,64 @@ def template_to_string(template):
 
 
 def expand_template(name_array, template, offset, prepend, append, verbose, region_list, scale, templates, template_meta_var):
+	# sys.setrecursionlimit(1000)
+	# pp.pprint(templates)
+	# sys.setrecursionlimit(20)
+	# print("\n")
+	# template = templates[template_]
+	# print(template, offset, prepend, append, template_meta_var, "\n")
 	if verbose:
 		print(f"expanding template\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}")
 		log.write(f"expanding template\n{template_to_string(template)}\nwith offset {offset}, prepend {prepend}, and append {append}\n")
 	for item in template:
+		# for i, it in enumerate(item):
+		# 	if it == "_meta_" and template_meta_var != "":
+		# 		item[i] = template_meta_var
+				# template_meta_new = template_meta_var
+			# else:
+			# 	# template_select = templates[item[1]]
+			# 	# template_meta_new = ""
 		if item[0] == "region":
 			final_offset = (item[2][0] + offset[0] * scale, item[2][1] + offset[1] * scale)
 			region_list.extend(expand_region(item[1], final_offset, prepend + item[3], item[4] + append, verbose))
 			# print(item)
 		elif item[0] == "template":
+			# print("template")
+			# print(item)
 			# print(line_split)
 			try:
 				if len(item) > 5:
 					meta_append = item[5]
 				else:
 					meta_append = ""
-				# expand_template(out_array, templates[line_split[1]], (int(line_split[2]), int(line_split[3])), line_split[4], append, verbose)
 				if item[1] == "_meta_" and template_meta_var != "":
 					template_select = templates[template_meta_var]
 				else:
 					template_select = templates[item[1]]
-				expand_template(name_array, template_select, (int(item[2]) + offset[0], int(item[3]) + offset[1]), prepend + item[4], meta_append + append, verbose, region_list, scale, templates, template_meta_var)
-				# for meta_template_item in template_select:
-				# 	out_list.append((meta_template_item[0] + int(item[2]), meta_template_item[1] + int(item[3]), str(item[4] + meta_template_item[2] + meta_append)))
+				# print("normal")
+				# pp.pprint(template)
+				expand_template(name_array, template_select, (int(item[2]) + offset[0], int(item[3]) + offset[1]), prepend + item[4], meta_append + append, verbose, region_list, scale, templates, "")
 			except KeyError:
-				print(f"ERROR: template {line_split[1]} is undefined")
-				log.write(f"ERROR: template {line_split[1]} is undefined\n")
+				print(f"ERROR: template {item[1]} is undefined")
+				log.write(f"ERROR: template {item[1]} is undefined\n")
+		elif item[0] == "meta":
+			try:
+				if len(item) > 6:
+					meta_append = item[6]
+				else:
+					meta_append = ""
+				if item[1] == "_meta_" and template_meta_var != "":
+					template_select = templates[template_meta_var]
+					template_meta_new = item[2]
+				else:
+					template_select = templates[item[1]]
+					template_meta_new = ""
+				# print("meta")
+				# pp.pprint(template)
+				expand_template(name_array, template_select, (int(item[3]) + offset[0], int(item[4]) + offset[1]), prepend + item[5], meta_append + append, verbose, region_list, scale, templates, template_meta_new)
+			except KeyError:
+				print(f"ERROR: template {item[1]} is undefined")
+				log.write(f"ERROR: template {item[1]} is undefined\n")
 		else:
 			try:
 				name_array[(item[1] + offset[1]) % len(name_array)][(item[0] + offset[0]) % len(name_array[0])] = prepend + item[2] + append
@@ -374,7 +393,7 @@ def expand_names(names, dimensions_in_tiles: typing.Tuple[int], scale, verbose)\
 					append = line_split[6]
 				else:
 					append = ""
-				template_calls.append((templates[line_split[2]], (int(line_split[3]), int(line_split[4])), line_split[5], append, template_meta_var))
+				template_calls.append((templates[line_split[1]], (int(line_split[3]), int(line_split[4])), line_split[5], append, template_meta_var))
 			except KeyError:
 				print(f"ERROR: template {line_split[2]} is undefined")
 				log.write(f"ERROR: template {line_split[2]} is undefined\n")
@@ -563,6 +582,7 @@ def processTSN(tsn_path: str):
 		log.write(f"ERROR: malformed tsn file, no image path declaration in first line, instead found\n{initial[0]}\nprogram closing...\n")
 		sys.exit(1)
 
+pp = pprint.PrettyPrinter(indent=4)
 
 # print(sys.argv)
 with open(str((pathlib.Path(__file__).parent / "tilesplit_log.txt").resolve()), "w+") as log:
