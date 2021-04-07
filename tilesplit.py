@@ -18,6 +18,7 @@ class TileSheet:
 			# print(image.__class__)
 			self.image: np.ndarray = image
 		self.scale = scale
+		self.export_counter = 0
 
 	def tile_coord_to_pixel_coord(self, xt: int, yt: int):
 		return xt * self.scale, yt * self.scale
@@ -67,6 +68,7 @@ def crop_regions(tilesheet: TileSheet, path_prepend: pathlib.Path, regions: typi
 				print("filename", filename)
 				log.write("filename " + str(filename) + "\n")
 			imageio.imsave(filename, tilesheet.crop_region(*coords), "png")
+			tilesheet.export_counter += 1
 		elif tempname == "_noexport_":
 			pass
 		else:
@@ -76,6 +78,7 @@ def crop_regions(tilesheet: TileSheet, path_prepend: pathlib.Path, regions: typi
 				log.write("filename " + str(filename) + "\n")
 			# print(filename, coords)
 			imageio.imsave(filename, tilesheet.crop_region(*coords), "png")
+			tilesheet.export_counter += 1
 
 
 def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: typing.Optional[str] = None, regions: typing.Optional[typing.Tuple[typing.Tuple[typing.Tuple[int, int, int, int], str]]] = None):
@@ -111,6 +114,7 @@ def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: ty
 						print("filename", filename)
 						log.write("filename " + str(filename) + "\n")
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
+					input_image.export_counter += 1
 				elif empty == "_noexport_":
 					pass
 				else:
@@ -119,6 +123,7 @@ def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: ty
 						print("filename", filename)
 						log.write("filename " + str(filename) + "\n")
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
+					input_image.export_counter += 1
 			else:
 				if tempname == "_blank_":
 					filename = pathlib.Path(str(path_prepend) + "tile_" + str(x) + "_" + str(y)).with_suffix(".png")
@@ -126,6 +131,7 @@ def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: ty
 						print("filename", filename)
 						log.write("filename " + str(filename) + "\n")
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
+					input_image.export_counter += 1
 				elif tempname == "_noexport_":
 					pass
 				else:
@@ -134,7 +140,10 @@ def crop_with_names(image_src: str, scale: int, verbose, names: tuple, empty: ty
 						print("filename", filename)
 						log.write("filename " + str(filename) + "\n")
 					imageio.imsave(filename, input_image.crop_tile(x, y), "png")
+					input_image.export_counter += 1
 	crop_regions(input_image, path_prepend, regions, verbose)
+	print(f"exported {input_image.export_counter} files")
+	log.write(f"exported {input_image.export_counter} files")
 
 
 def wrap_incr(x, y, length):
